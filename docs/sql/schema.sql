@@ -2,7 +2,9 @@ CREATE TABLE users (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
+    email_verified_at TIMESTAMP NULL,
+    password VARCHAR(255) NOT NULL,
+    remember_token VARCHAR(100) NULL,
     role ENUM('admin', 'member') NOT NULL DEFAULT 'member',
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -75,7 +77,7 @@ CREATE TABLE game_platform (
         ON DELETE RESTRICT
 );
 
-CREATE TABLE user_game_collection (
+CREATE TABLE user_game_collections (
     user_id BIGINT UNSIGNED NOT NULL,
     game_id BIGINT UNSIGNED NOT NULL,
     status ENUM('wishlist', 'playing', 'completed', 'dropped') NOT NULL DEFAULT 'wishlist',
@@ -84,6 +86,7 @@ CREATE TABLE user_game_collection (
     added_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, game_id),
     CONSTRAINT chk_collection_rating CHECK (rating IS NULL OR (rating BETWEEN 1 AND 10)),
+    CONSTRAINT chk_wishlist_no_rating CHECK (status <> 'wishlist' OR rating IS NULL),
     CONSTRAINT fk_collection_user
         FOREIGN KEY (user_id) REFERENCES users(id)
         ON UPDATE CASCADE

@@ -17,6 +17,9 @@ Deze map bevat deel 1 van de opdracht (analyse en ontwerp) voor het project **Ga
 - `sql/schema.sql`  
   SQL `CREATE TABLE` statements met foreign keys voor de eerste implementatie.
 
+- `evidence/checklist-deel2.md`
+  Checklist voor deel 2 (validatie en bewijsmateriaal voor inlevering).
+
 ## Opmerking
 
 Dit document is opgesteld zodat je het direct kunt gebruiken tijdens:

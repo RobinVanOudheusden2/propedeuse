@@ -96,12 +96,15 @@ Buiten scope:
 ### 4.2 Hoofdfuncties
 
 - Login/Logout.
-- Overzicht games en detailpagina.
+- Overzicht en beheerpagina's voor games.
 - CRUD games.
 - CRUD genres.
 - CRUD platforms.
 - CRUD developers.
 - Toevoegen/wijzigen/verwijderen van games in persoonlijke collectie.
+
+Op dit moment zijn beheerschermen toegankelijk voor iedere ingelogde gebruiker.  
+Een striktere rol-autorisatie (admin/member) staat als mogelijke vervolgstap op de backlog.
 
 ## 5. Interactieontwerp
 
@@ -179,14 +182,14 @@ Toelichting:
 
 ### 6.2 Stap 2 - Relationeel schema
 
-- `users(id PK, name, email UNIQUE, password_hash, role, created_at, updated_at)`
+- `users(id PK, name, email UNIQUE, email_verified_at, password, remember_token, role, created_at, updated_at)`
 - `developers(id PK, name UNIQUE, country, founded_year, created_at, updated_at)`
 - `platforms(id PK, name UNIQUE, manufacturer, release_year, created_at, updated_at)`
 - `genres(id PK, name UNIQUE, created_at, updated_at)`
 - `games(id PK, title, release_date, pegi_age, developer_id FK -> developers.id, created_at, updated_at)`
 - `game_genre(game_id PK/FK -> games.id, genre_id PK/FK -> genres.id)`
 - `game_platform(game_id PK/FK -> games.id, platform_id PK/FK -> platforms.id)`
-- `user_game_collection(user_id PK/FK -> users.id, game_id PK/FK -> games.id, status, rating, notes, added_at)`
+- `user_game_collections(user_id PK/FK -> users.id, game_id PK/FK -> games.id, status, rating, notes, added_at)`
 
 ### 6.3 Stap 3 - DDL (CREATE TABLE)
 
@@ -200,33 +203,29 @@ De SQL `CREATE TABLE` statements met foreign keys staan in:
 
 ```mermaid
 flowchart LR
-    Member([Member])
-    Admin([Admin])
+    User([Ingelogde gebruiker])
     System[[Gamebibliotheek Systeem]]
 
-    Member -->|Inloggen| System
-    Member -->|Games bekijken| System
-    Member -->|Eigen collectie beheren| System
-
-    Admin -->|Inloggen| System
-    Admin -->|Games beheren| System
-    Admin -->|Genres beheren| System
-    Admin -->|Platforms beheren| System
-    Admin -->|Developers beheren| System
+    User -->|Inloggen| System
+    User -->|Games beheren| System
+    User -->|Genres beheren| System
+    User -->|Platforms beheren| System
+    User -->|Developers beheren| System
+    User -->|Eigen collectie beheren| System
 ```
 
 ### 7.2 Usecasebeschrijving - "Game toevoegen aan collectie"
 
 - **Naam:** Game toevoegen aan collectie
-- **Primaire actor:** Member
+- **Primaire actor:** Ingelogde gebruiker
 - **Preconditie:** gebruiker is ingelogd
 - **Trigger:** gebruiker klikt op "Toevoegen aan collectie"
 - **Basispad:**
-  1. Systeem toont game detailpagina.
+  1. Systeem toont collectiepagina met game-keuzelijst.
   2. Gebruiker kiest status (bijv. wishlist).
   3. Gebruiker slaat op.
   4. Systeem valideert invoer.
-  5. Systeem maakt record in `user_game_collection`.
+  5. Systeem maakt record in `user_game_collections`.
   6. Systeem toont succesmelding.
 - **Alternatief pad:**
   - Als game al in collectie zit, toont systeem melding en biedt "bijwerken" aan.
@@ -237,16 +236,12 @@ flowchart LR
 ```mermaid
 classDiagram
     class AuthController
+    class DashboardController
     class GameController
+    class GenreController
+    class PlatformController
+    class DeveloperController
     class CollectionController
-
-    class GameService
-    class CollectionService
-    class AuthService
-
-    class GameRepository
-    class UserRepository
-    class CollectionRepository
 
     class User
     class Game
@@ -255,17 +250,17 @@ classDiagram
     class Developer
     class UserGameCollection
 
-    AuthController --> AuthService
-    GameController --> GameService
-    CollectionController --> CollectionService
-
-    GameService --> GameRepository
-    CollectionService --> CollectionRepository
-    AuthService --> UserRepository
-
-    GameRepository --> Game
-    CollectionRepository --> UserGameCollection
-    UserRepository --> User
+    AuthController --> User
+    DashboardController --> Game
+    DashboardController --> Genre
+    DashboardController --> Platform
+    DashboardController --> Developer
+    GameController --> Game
+    GenreController --> Genre
+    PlatformController --> Platform
+    DeveloperController --> Developer
+    CollectionController --> UserGameCollection
+    CollectionController --> Game
 
     Game "1" --> "many" UserGameCollection
     User "1" --> "many" UserGameCollection
@@ -281,18 +276,18 @@ sequenceDiagram
     actor Gebruiker
     participant UI as LoginPagina
     participant AC as AuthController
-    participant AS as AuthService
-    participant UR as UserRepository
+    participant AUTH as Laravel Auth
+    participant USER as User model
     participant DB as Database
 
     Gebruiker->>UI: Vul e-mail + wachtwoord in
     UI->>AC: POST /login
-    AC->>AS: authenticate(email, password)
-    AS->>UR: findByEmail(email)
-    UR->>DB: SELECT user WHERE email=?
-    DB-->>UR: user record
-    UR-->>AS: User
-    AS-->>AC: geldig/ongeldig
+    AC->>AUTH: attempt(credentials)
+    AUTH->>USER: zoek gebruiker op e-mail
+    USER->>DB: SELECT user WHERE email=?
+    DB-->>USER: user record
+    USER-->>AUTH: User
+    AUTH-->>AC: geldig/ongeldig
     AC-->>UI: sessie + redirect /dashboard of foutmelding
 ```
 
@@ -302,7 +297,7 @@ sequenceDiagram
 flowchart TB
     Client[Client device<br/>Browser]
     WebServer[Webserver<br/>Apache/Nginx + PHP runtime]
-    App[Applicatielaag<br/>MVC controllers/services/repos]
+    App[Applicatielaag<br/>MVC controllers + Eloquent modellen]
     DB[(MySQL Database)]
     Git[(Git repository)]
 
